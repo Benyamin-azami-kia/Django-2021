@@ -50,6 +50,14 @@ def deleteUser(sender, instance, **kwargs):
     except:
         pass
 
+@receiver(post_save, sender=Profile)
+def update_profile(sender, instance, created, **kwargs):
+    profile=instance
+    if not created:
+        if profile.profile_image =='':
+            profile.profile_image='profiles/user-default.png'
+            profile.save()
+
 
 post_save.connect(createProfile, sender=User)
 post_save.connect(updateUser, sender=Profile)
