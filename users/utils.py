@@ -38,12 +38,10 @@ def searchProfiles(request):
     if request.GET.get('search_query'):
         search_query = request.GET.get('search_query')
 
-    skills = Skill.objects.filter(name__icontains=search_query)
-
-    profiles = Profile.objects.distinct().filter(
-        Q(name__icontains=search_query) |
-        Q(short_intro__icontains=search_query) |
-        Q(skill__in=skills)
-    )
+    profiles=Profile.objects.distinct().select_related('user')\
+                            .prefetch_related('skill_set')\
+                            .filter(Q(user__first_name__istartswith=query_search) | 
+                                    Q(user__last_name__istartswith=query_search) |
+                                    Q(skill__in=Skill.objects.filter(name__icontains=query_search)))
 
     return profiles, search_query
