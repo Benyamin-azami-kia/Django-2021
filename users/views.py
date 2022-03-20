@@ -38,6 +38,7 @@ def loginUser(request):
     return render(request, 'users/login_register.html')
 
 
+@login_required(login_url='login')
 def logoutUser(request):
     logout(request)
     messages.info(request, 'User was logged out!')
@@ -78,7 +79,10 @@ def profiles(request):
 
 
 def userProfile(request, pk):
-    profile = Profile.objects.get(id=pk)
+    try:
+        profile=Profile.objects.select_related('user').prefetch_related('skill_set').get(pk=pk)
+    except Profile.DoesNotExist:
+        raise Http404()
 
     topSkills = profile.skill_set.exclude(description__exact="")
     otherSkills = profile.skill_set.filter(description="")
@@ -90,7 +94,10 @@ def userProfile(request, pk):
 
 @login_required(login_url='login')
 def userAccount(request):
-    profile = request.user.profile
+    try:
+        profile=Profile.objects.select_related('user').prefetch_related('skill_set').get(user_id=request.user.id)
+    except Profile.DoesNotExist:
+        raise Http404()
 
     skills = profile.skill_set.all()
     projects = profile.project_set.all()
@@ -136,7 +143,7 @@ def createSkill(request):
 @login_required(login_url='login')
 def updateSkill(request, pk):
     profile = request.user.profile
-    skill = profile.skill_set.get(id=pk)
+    skill =get_object_or_404(profile.skill_set, pk=pk)
     form = SkillForm(instance=skill)
 
     if request.method == 'POST':
@@ -153,7 +160,7 @@ def updateSkill(request, pk):
 @login_required(login_url='login')
 def deleteSkill(request, pk):
     profile = request.user.profile
-    skill = profile.skill_set.get(id=pk)
+    skill = get_object_or_404(profile.skill_set, pk=pk)
     if request.method == 'POST':
         skill.delete()
         messages.success(request, 'Skill was deleted successfully!')
@@ -166,7 +173,7 @@ def deleteSkill(request, pk):
 @login_required(login_url='login')
 def inbox(request):
     profile = request.user.profile
-    messageRequests = profile.messages.all()
+    messageRequests = Message.objects.filter(recipient=profile).select_related('sender__user')
     unreadCount = messageRequests.filter(is_read=False).count()
     context = {'messageRequests': messageRequests, 'unreadCount': unreadCount}
     return render(request, 'users/inbox.html', context)
@@ -175,7 +182,7 @@ def inbox(request):
 @login_required(login_url='login')
 def viewMessage(request, pk):
     profile = request.user.profile
-    message = profile.messages.get(id=pk)
+    message = get_object_or_404(Message.objects.select_related('sender__user'), pk=pk, recipient=profile)
     if message.is_read == False:
         message.is_read = True
         message.save()
